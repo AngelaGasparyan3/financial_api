@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 class AuthenticateUserService
-  #require_relative '../../lib/json_web_token'
+  # require_relative '../../lib/json_web_token'
 
   def initialize(email, password)
     @email = email

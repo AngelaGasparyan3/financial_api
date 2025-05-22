@@ -1,14 +1,16 @@
+# frozen_string_literal: true
+
 class UpdateBalanceService
-  def initialize(user, balance)
-    @user = user
+  def initialize(account, balance)
+    @account = account
     @balance = balance
   end
 
   def call
-    if @user.update balance: @balance
-      { success: true, user: @user }
+    if @account.update(balance: @balance.to_f)
+      { success: true, account: @account }
     else
-      { success: false, error: 'Failed to Update balance' }
+      { success: false, error: 'Failed to update balance' }
     end
   end
 end

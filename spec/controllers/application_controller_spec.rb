@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
 RSpec.describe ApplicationController, type: :controller do
@@ -18,7 +20,7 @@ RSpec.describe ApplicationController, type: :controller do
         request.headers['Authorization'] = "Bearer #{token}"
         get :index
         expect(response).to have_http_status(:ok)
-        expect(JSON.parse(response.body)['message']).to eq('Authenticated')
+        expect(response.parsed_body['message']).to eq('Authenticated')
       end
     end
 
@@ -26,7 +28,7 @@ RSpec.describe ApplicationController, type: :controller do
       it 'returns unauthorized' do
         get :index
         expect(response).to have_http_status(:unauthorized)
-        expect(JSON.parse(response.body)['error']).to eq('Invalid token')
+        expect(response.parsed_body['error']).to eq('Invalid token')
       end
     end
 
@@ -36,7 +38,7 @@ RSpec.describe ApplicationController, type: :controller do
         request.headers['Authorization'] = "Bearer #{expired_token}"
         get :index
         expect(response).to have_http_status(:unauthorized)
-        expect(JSON.parse(response.body)['error']).to eq('Token has expired')
+        expect(response.parsed_body['error']).to eq('Token has expired')
       end
     end
   end

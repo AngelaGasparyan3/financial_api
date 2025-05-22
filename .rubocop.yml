@@ -1,0 +1,36 @@
+require:
+  - rubocop-rails
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.2
+  Exclude:
+    - 'db/schema.rb'
+    - 'bin/**/*'
+    - 'node_modules/**/*'
+  SuggestExtensions: false
+
+
+Rails:
+  Enabled: true
+
+Style/Documentation:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: 20
+
+Metrics/AbcSize:
+  Enabled: 30
+
+Metrics/BlockLength:
+  Enabled: 50
+
+Layout/LineLength:
+  Enabled: 120
+
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Metrics/PerceivedComplexity:
+  Max: 12

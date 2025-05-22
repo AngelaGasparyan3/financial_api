@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateUserService
   def initialize(params)
     @params = params

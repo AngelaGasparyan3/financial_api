@@ -1,8 +1,18 @@
+# frozen_string_literal: true
+
 Rails.application.routes.draw do
-  # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html
-    post '/login', to: 'users#login'
-    resources :users, only: [:create, :show] do
-      patch :update_balance, on: :member
-      post :transfer, on: :collection
+  post '/login', to: 'users#login'
+  resources :users, only: %i[create show]
+  resources :accounts, only: [:show] do
+    patch :update_balance, on: :member
+  end
+  resources :transfers, only: %i[create show index]
+  namespace :admin do
+    resources :users, only: %i[index show] do
+      member do
+        patch :update_role
+      end
     end
+    resources :transfers, only: %i[create show]
+  end
 end
