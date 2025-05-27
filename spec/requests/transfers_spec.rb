@@ -29,10 +29,10 @@ RSpec.describe 'Transfers API', type: :request do
         end.to change(Transfer, :count).by(1)
 
         expect(response).to have_http_status(:created)
-        expect(json_response['transfer']['amount']).to eq('100.0')
-        expect(json_response['transfer']['from_account_id']).to eq(from_account.id)
-        expect(json_response['transfer']['to_account_id']).to eq(to_account.id)
-        expect(json_response['transfer']['status']).to eq('created')
+        expect(json_response['data']['attributes']['amount']).to eq(100.0)
+        expect(json_response['data']['attributes']['from_account_id']).to eq(from_account.id)
+        expect(json_response['data']['attributes']['to_account_id']).to eq(to_account.id)
+        expect(json_response['data']['attributes']['status']).to eq('created')
 
         expect(from_account.reload.balance.to_f).to eq(400.0)
         expect(to_account.reload.balance.to_f).to eq(400.0)
@@ -53,7 +53,8 @@ RSpec.describe 'Transfers API', type: :request do
           post '/transfers', params: invalid_params, headers: headers
         end.to change(Transfer, :count).by(1)
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(json_response['error']).to eq('Insufficient funds')
+        expect(json_response['message']).to eq('Insufficient funds')
+        expect(json_response['code']).to eq('TRANSFER_FAILED')
 
         expect(from_account.reload.balance).to eq(500.0)
         expect(to_account.reload.balance).to eq(300.0)
@@ -80,8 +81,9 @@ RSpec.describe 'Transfers API', type: :request do
           post '/transfers', params: invalid_params, headers: headers
         end.not_to change(Transfer, :count)
 
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(json_response['error']).to eq('Sender account not found')
+        expect(response).to have_http_status(:not_found)
+        expect(json_response['message']).to eq('Source account not found')
+        expect(json_response['code']).to eq('TRANSFER_FAILED')
       end
     end
 
@@ -99,8 +101,9 @@ RSpec.describe 'Transfers API', type: :request do
           post '/transfers', params: invalid_params, headers: headers
         end.not_to change(Transfer, :count)
 
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(json_response['error']).to eq('Recipient account not found')
+        expect(response).to have_http_status(:not_found)
+        expect(json_response['message']).to eq('Destination account not found')
+        expect(json_response['code']).to eq('TRANSFER_FAILED')
       end
     end
 
@@ -119,7 +122,8 @@ RSpec.describe 'Transfers API', type: :request do
         end.not_to change(Transfer, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(json_response['error']).to eq('Amount must be greater than zero')
+        expect(json_response['message']).to eq('Amount must be greater than zero')
+        expect(json_response['code']).to eq('TRANSFER_FAILED')
       end
     end
 

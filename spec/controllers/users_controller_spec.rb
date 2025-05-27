@@ -14,7 +14,7 @@ RSpec.describe UsersController, type: :controller do
       account
       get :show, params: { id: user.id }
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body['balance'].to_f).to eq(account.balance)
+      expect(response.parsed_body['data']['attributes']['balance'].to_f).to eq(account.balance)
     end
   end
 
@@ -28,7 +28,8 @@ RSpec.describe UsersController, type: :controller do
     it 'fails to create a user with invalid data' do
       post :create, params: { user: { email: '', password: '' } }
       expect(response).to have_http_status(:unprocessable_entity)
-      expect(response.parsed_body['errors']).not_to be_empty
+
+      expect(response.parsed_body['status']).to eq('error')
     end
   end
 
@@ -43,7 +44,8 @@ RSpec.describe UsersController, type: :controller do
     it 'fails with invalid credentials' do
       post :login, params: { email: 'wrong@example.com', password: 'wrong' }
       expect(response).to have_http_status(:unauthorized)
-      expect(response.parsed_body['error']).to eq('Invalid credentials')
+      expect(response.parsed_body['message']).to eq('Invalid credentials')
+      expect(response.parsed_body['code']).to eq('AUTHENTICATION_FAILED')
     end
   end
 end

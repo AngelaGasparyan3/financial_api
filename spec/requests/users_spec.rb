@@ -47,7 +47,7 @@ RSpec.describe 'Users API', type: :request do
 
       it 'returns validation errors' do
         post '/users', params: { user: { email: '', password: 'password123' } }
-        expect(json_response['errors']).to include(/Email can't be blank/)
+        expect(json_response['message']).to include(/Email can't be blank/)
       end
     end
   end
@@ -67,7 +67,8 @@ RSpec.describe 'Users API', type: :request do
       it 'returns unauthorized status' do
         post '/login', params: { email: 'existing@example.com', password: 'wrongpassword' }
         expect(response).to have_http_status(:unauthorized)
-        expect(json_response['error']).to eq('Invalid credentials')
+        expect(json_response['message']).to eq('Invalid credentials')
+        expect(json_response['code']).to eq('AUTHENTICATION_FAILED')
       end
     end
   end
@@ -81,16 +82,17 @@ RSpec.describe 'Users API', type: :request do
       it 'returns the user' do
         get "/users/#{user.id}", headers: { 'Authorization' => "Bearer #{token}" }
         expect(response).to have_http_status(:ok)
-        expect(json_response['id']).to eq(user.id)
-        expect(json_response['email']).to eq(user.email)
+        expect(json_response['data']['id'].to_f).to eq(user.id)
+        expect(json_response['data']['attributes']['email']).to eq(user.email)
       end
     end
 
     context "when fetching another user's profile" do
       it 'returns unauthorized status' do
         get "/users/#{other_user.id}", headers: { 'Authorization' => "Bearer #{token}" }
-        expect(response).to have_http_status(:unauthorized)
-        expect(json_response['error']).to eq('Unauthorized')
+        expect(response).to have_http_status(:forbidden)
+        expect(json_response['message']).to eq('Unauthorized access')
+        expect(json_response['code']).to eq('UNAUTHORIZED')
       end
     end
 

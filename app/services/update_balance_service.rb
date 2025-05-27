@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class UpdateBalanceService
+  class UpdateError < StandardError; end
+
   def initialize(account, balance)
     @account = account
     @balance = balance

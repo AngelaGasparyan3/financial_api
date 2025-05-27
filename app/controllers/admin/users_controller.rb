@@ -2,54 +2,46 @@
 
 module Admin
   class UsersController < Admin::BaseController
+    before_action :set_user, only: %i[show update_role]
+
     def index
       users = User.includes(:accounts).all
-      render json: {
-        users: users.map do |user|
-          {
-            id: user.id,
-            email: user.email,
-            role: user.role,
-            accounts_count: user.accounts.count,
-            total_balance: user.accounts.sum(:balance),
-            created_at: user.created_at
-          }
-        end
-      }
+      render json: users, each_serializer: Admin::UserSerializer
     end
 
     def show
-      user = User.find(params[:id])
-      render json: {
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          created_at: user.created_at,
-          accounts: user.accounts.map do |account|
-            {
-              id: account.id,
-              number: account.number,
-              name: account.name,
-              balance: account.balance
-            }
-          end
-        }
-      }
-    rescue ActiveRecord::RecordNotFound
-      render json: { error: 'User not found' }, status: :not_found
+      render json: @user, serializer: Admin::UserDetailSerializer
     end
 
     def update_role
-      user = User.find(params[:id])
-
-      if user.update(role: params[:role])
-        render json: { message: 'Role updated successfully', user: { id: user.id, role: user.role } }
+      if @user.update(role: params[:role])
+        render json: { message: 'Role updated successfully', user: { id: @user.id, role: @user.role } }
       else
-        render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
+        render_validation_error(@user.errors.full_messages)
       end
+    end
+
+    private
+
+    def set_user
+      @user = User.find(params[:id])
     rescue ActiveRecord::RecordNotFound
-      render json: { error: 'User not found' }, status: :not_found
+      render_not_found('User')
+    end
+
+    def render_validation_error(errors)
+      render json: ErrorSerializer.serialize(
+        message: 'Validation failed',
+        code: 'VALIDATION_ERROR',
+        details: errors
+      ), status: :unprocessable_entity
+    end
+
+    def render_not_found(resource)
+      render json: ErrorSerializer.serialize(
+        message: "#{resource} not found",
+        code: "#{resource.upcase}_NOT_FOUND"
+      ), status: :not_found
     end
   end
 end

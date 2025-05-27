@@ -1,20 +1,21 @@
 # frozen_string_literal: true
 
 class AuthenticateUserService
-  # require_relative '../../lib/json_web_token'
-
   def initialize(email, password)
     @email = email
     @password = password
   end
 
   def call
-    user = User.find_by(email: @email)
-    if user&.authenticate @password
-      token = JsonWebToken.encode(user_id: user.id)
-      { success: true, token: token }
+    user = User.find_by(email: email)
+    if user&.authenticate(password)
+      { success: true, token: JsonWebToken.encode(user_id: user.id) }
     else
       { success: false, error: 'Invalid credentials' }
     end
   end
+
+  private
+
+  attr_reader :email, :password
 end

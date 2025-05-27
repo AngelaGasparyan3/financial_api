@@ -6,51 +6,35 @@ class UsersController < ApplicationController
 
   def show
     user = User.find(params[:id])
-
-    if current_user.admin?
-      render json: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        balance: user.accounts.sum(:balance),
-        accounts_count: user.accounts.count,
-        created_at: user.created_at
-      }
-    elsif user == current_user
-      account = user.accounts.first
-      balance = account ? account.balance : 0.0
-      render json: { id: user.id, email: user.email, balance: balance }
-    else
-      render json: { error: 'Unauthorized' }, status: :unauthorized
-    end
-  rescue ActiveRecord::RecordNotFound
-    render json: { error: 'User not found' }, status: :not_found
+    render json: user, serializer: UserSerializer, scope: current_user
   end
 
   def create
-    service = CreateUserService.new(user_params)
-    result = service.call
+    result = CreateUserService.new(user_params).call
+    return render_validation_error(result[:errors]) unless result[:success]
 
-    if result[:success]
-      result[:user].accounts.create!(
-        number: SecureRandom.uuid,
-        name: 'Main Account',
-        balance: 0
-      )
-      render json: { message: 'User created', user: result[:user] }, status: :created
-    else
-      render json: { errors: result[:errors] }, status: :unprocessable_entity
-    end
+    result[:user].accounts.create!(number: SecureRandom.uuid, name: 'Main Account', balance: 0.0)
+    render json: { message: 'User created', user: result[:user].slice(:id, :email) }, status: :created
+  end
+
+  def render_validation_error(errors)
+    render json: ErrorSerializer.serialize(
+      code: 'VALIDATION_FAILED',
+      message: errors.join(', '),
+      status: 'error'
+    ), status: :unprocessable_entity
   end
 
   def login
-    service = AuthenticateUserService.new(params[:email], params[:password])
-    result = service.call
+    result = AuthenticateUserService.new(params[:email], params[:password]).call
 
     if result[:success]
       render json: { token: result[:token] }, status: :ok
     else
-      render json: { error: result[:error] }, status: :unauthorized
+      render json: ErrorSerializer.serialize(
+        code: 'AUTHENTICATION_FAILED',
+        message: result[:error]
+      ), status: :unauthorized
     end
   end
 
@@ -58,12 +42,5 @@ class UsersController < ApplicationController
 
   def user_params
     params.require(:user).permit(:email, :password)
-  end
-
-  def require_owner_or_admin
-    user_id = params[:id].to_i
-    return if current_user.admin? || current_user.id == user_id
-
-    render json: { error: 'Unauthorized' }, status: :unauthorized
   end
 end

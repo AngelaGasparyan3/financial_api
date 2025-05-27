@@ -29,7 +29,8 @@ RSpec.describe 'Accounts API', type: :request do
         get "/accounts/#{other_account.id}", headers: headers
 
         expect(response).to have_http_status(:not_found)
-        expect(json_response['error']).to eq('Account not found')
+        expect(json_response['message']).to eq('Account not found')
+        expect(json_response['code']).to eq('ACCOUNT_NOT_FOUND')
       end
     end
 
@@ -38,7 +39,8 @@ RSpec.describe 'Accounts API', type: :request do
         get '/accounts/0', headers: headers
 
         expect(response).to have_http_status(:not_found)
-        expect(json_response['error']).to eq('Account not found')
+        expect(json_response['message']).to eq('Account not found')
+        expect(json_response['code']).to eq('ACCOUNT_NOT_FOUND')
       end
     end
 
@@ -55,7 +57,7 @@ RSpec.describe 'Accounts API', type: :request do
     context 'when the update is valid' do
       it 'updates the balance' do
         patch "/accounts/#{account.id}/update_balance",
-              params: { balance: 1000 },
+              params: { account: { balance: 1000.0 } },
               headers: headers
 
         expect(response).to have_http_status(:ok)
@@ -76,11 +78,12 @@ RSpec.describe 'Accounts API', type: :request do
 
       it 'returns an error' do
         patch "/accounts/#{account.id}/update_balance",
-              params: { balance: -100 },
+              params: { account: { balance: nil } },
               headers: headers
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(json_response['error']).to eq('Failed to update balance')
+        expect(json_response['message']).to eq('Failed to update balance')
+        expect(json_response['code']).to eq('UPDATE_FAILED')
       end
     end
 
@@ -94,7 +97,8 @@ RSpec.describe 'Accounts API', type: :request do
               headers: headers
 
         expect(response).to have_http_status(:not_found)
-        expect(json_response['error']).to eq('Account not found')
+        expect(json_response['message']).to eq('Account not found')
+        expect(json_response['code']).to eq('ACCOUNT_NOT_FOUND')
       end
     end
 

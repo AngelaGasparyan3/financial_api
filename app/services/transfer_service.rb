@@ -1,81 +1,82 @@
 # frozen_string_literal: true
 
 class TransferService
+  class TransferError < StandardError
+    attr_reader :status
+
+    def initialize(message, status = :unprocessable_entity)
+      super(message)
+      @status = status
+    end
+  end
+
+  class DuplicateTransferError < TransferError; end
+  class InsufficientFundsError < TransferError; end
+  class AccountNotFoundError < TransferError; end
+  class InvalidAmountError < TransferError; end
+
   def initialize(from_account, to_account, amount)
     @from_account = from_account
     @to_account = to_account
     @amount = amount.to_f
   end
 
+  def call!
+    raise AccountNotFoundError, 'Sender account not found' unless @from_account
+    raise AccountNotFoundError, 'Recipient account not found' unless @to_account
+    raise InvalidAmountError, 'Amount must be greater than zero' unless @amount.positive?
+    raise DuplicateTransferError, 'Duplicate transfer detected' if duplicate_transfer?
+
+    Transfer.transaction do
+      from_account_locked = Account.lock.find(@from_account.id)
+      to_account_locked   = Account.lock.find(@to_account.id)
+
+      raise InsufficientFundsError, 'Insufficient funds' if from_account_locked.balance < @amount
+
+      from_account_locked.update!(balance: from_account_locked.balance - @amount)
+      to_account_locked.update!(balance: to_account_locked.balance + @amount)
+
+      Transfer.create!(
+        from_account: from_account_locked,
+        to_account: to_account_locked,
+        amount: @amount,
+        status: 'created'
+      )
+    end
+  rescue InsufficientFundsError
+    create_failed_transfer
+    raise
+  rescue ActiveRecord::RecordInvalid => e
+    raise TransferError, e.message
+  end
+
   def call
-    validation_result = validate_transfer
-    return validation_result unless validation_result[:success]
-
-    transfer = create_transfer_record
-    return { success: false, error: transfer.errors.full_messages.join(', ') } unless transfer.persisted?
-
-    process_transfer(transfer)
+    transfer = call!
+    { success: true, transfer: transfer }
+  rescue DuplicateTransferError, InsufficientFundsError => e
+    transfer = create_failed_transfer(e.message)
+    { success: false, error: e.message, transfer: transfer }
   rescue StandardError => e
-    Rails.logger.error "Transfer failed: #{e.message}"
-    { success: false, error: 'Transfer failed due to system error' }
+    { success: false, error: e.message }
   end
 
   private
 
-  def validate_transfer
-    return { success: false, error: 'Sender account not found' } unless @from_account
-    return { success: false, error: 'Recipient account not found' } unless @to_account
-    return { success: false, error: 'Amount must be greater than zero' } if @amount <= 0
-    return { success: false, error: 'Cannot transfer to the same account' } if @from_account.id == @to_account.id
-
-    { success: true }
+  def duplicate_transfer?
+    Transfer.exists?(from_account: @from_account,
+                     to_account: @to_account,
+                     amount: @amount,
+                     created_at: 1.minute.ago..Time.current)
   end
 
-  def create_transfer_record
+  def create_failed_transfer(_error_status = nil)
+    return unless @from_account && @to_account
+
     Transfer.create(
       from_account: @from_account,
       to_account: @to_account,
       amount: @amount,
-      status: 'created'
+      status: 'failed'
     )
   end
-
-  def process_transfer(transfer)
-    sufficient_funds = check_sufficient_funds
-
-    unless sufficient_funds
-      transfer.update!(status: 'failed')
-      return { success: false, error: 'Insufficient funds', transfer: transfer }
-    end
-
-    execute_transfer_transaction(transfer)
-  end
-
-  def check_sufficient_funds
-    ActiveRecord::Base.transaction do
-      locked_from_account = Account.lock.find(@from_account.id)
-      locked_from_account.sufficient_funds?(@amount)
-    end
-  end
-
-  def execute_transfer_transaction(transfer)
-    ActiveRecord::Base.transaction do
-      locked_from_account = Account.lock.find(@from_account.id)
-      locked_to_account = Account.lock.find(@to_account.id)
-
-      unless locked_from_account.sufficient_funds?(@amount)
-        transfer.update!(status: 'failed')
-        raise InsufficientFundsError, 'Insufficient funds'
-      end
-
-      locked_from_account.update!(balance: locked_from_account.balance - @amount)
-      locked_to_account.update!(balance: locked_to_account.balance + @amount)
-
-      { success: true, transfer: transfer }
-    end
-  rescue InsufficientFundsError => e
-    { success: false, error: e.message, transfer: transfer }
-  end
-
-  class InsufficientFundsError < StandardError; end
 end

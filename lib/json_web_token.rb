@@ -9,7 +9,7 @@ class JsonWebToken
   end
 
   def self.decode(token)
-    body = JWT.decode(token, SECRET_KEY)[0]
+    body = JWT.decode(token, SECRET_KEY, true, algorithm: 'HS256')[0]
     ActiveSupport::HashWithIndifferentAccess.new(body)
   end
 end

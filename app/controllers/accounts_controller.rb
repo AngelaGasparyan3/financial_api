@@ -2,33 +2,30 @@
 
 class AccountsController < ApplicationController
   before_action :authenticate_user
+  before_action :set_account, only: %i[show update_balance]
 
   def show
-    account = @current_user.accounts.find(params[:id])
-    render json: {
-      id: account.id,
-      number: account.number,
-      name: account.name,
-      balance: account.balance.to_f
-    }
-  rescue ActiveRecord::RecordNotFound
-    render json: { error: 'Account not found' }, status: :not_found
+    render json: AccountSerializer.new(@account).serializable_hash
   end
 
   def update_balance
-    account = @current_user.accounts.find(params[:id])
-    service = UpdateBalanceService.new(account, params[:balance])
-    result = service.call
+    result = UpdateBalanceService.new(@account, balance_params[:balance]).call
 
-    if result[:success]
-      render json: {
-        message: 'Balance updated',
-        account: result[:account].as_json.merge(balance: result[:account].balance.to_f)
-      }
-    else
-      render json: { error: result[:error] }, status: :unprocessable_entity
-    end
-  rescue ActiveRecord::RecordNotFound
-    render json: { error: 'Account not found' }, status: :not_found
+    raise UpdateBalanceService::UpdateError, result[:error] unless result[:success]
+
+    render json: {
+      message: 'Balance updated',
+      account: AccountSerializer.new(result[:account]).serializable_hash
+    }, status: :ok
+  end
+
+  private
+
+  def set_account
+    @account = current_user.accounts.find(params[:id])
+  end
+
+  def balance_params
+    params.require(:account).permit(:balance)
   end
 end

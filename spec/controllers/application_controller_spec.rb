@@ -27,8 +27,11 @@ RSpec.describe ApplicationController, type: :controller do
     context 'with missing token' do
       it 'returns unauthorized' do
         get :index
+
         expect(response).to have_http_status(:unauthorized)
-        expect(response.parsed_body['error']).to eq('Invalid token')
+        expect(response.parsed_body['code']).to eq('INVALID_TOKEN')
+        expect(response.parsed_body['message']).to eq('Invalid token')
+        expect(response.parsed_body['status']).to eq('error')
       end
     end
 
@@ -37,8 +40,11 @@ RSpec.describe ApplicationController, type: :controller do
         expired_token = JsonWebToken.encode({ user_id: user.id }, 1.minute.ago)
         request.headers['Authorization'] = "Bearer #{expired_token}"
         get :index
+
         expect(response).to have_http_status(:unauthorized)
-        expect(response.parsed_body['error']).to eq('Token has expired')
+        expect(response.parsed_body['code']).to eq('TOKEN_EXPIRED')
+        expect(response.parsed_body['message']).to eq('Token has expired')
+        expect(response.parsed_body['status']).to eq('error')
       end
     end
   end
